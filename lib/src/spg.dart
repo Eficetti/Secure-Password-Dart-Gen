@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'package:spg/src/hash.dart';
+
 /// {@template spg}
 /// Secure Password Gen
 /// {@endtemplate}
@@ -15,6 +17,7 @@ class Spg {
   ///
   static String generateRandomPassword({
     int length = 18,
+    bool needHash = false,
   }) {
     if (length < 8) {
       throw ArgumentError('Password length should be at least 8 characters');
@@ -40,10 +43,25 @@ class Spg {
     // Shuffle the characters to ensure randomness
     passwordChars.shuffle(rand);
 
+    if (needHash) {
+      return PasswordHashManager.hash(passwordChars.join());
+    }
+
     return passwordChars.join();
   }
 
   static String _getRandomChar(String charSet, Random rand) {
     return charSet[rand.nextInt(charSet.length)];
+  }
+
+  ///
+  static bool validatePasswords({
+    required String password,
+    required String hashedPassword,
+  }) {
+    return PasswordHashManager.verify(
+      password: password,
+      hashedPassword: hashedPassword,
+    );
   }
 }
