@@ -1,9 +1,8 @@
 import 'dart:math';
-
 import 'package:spg/src/hash.dart';
 
 /// {@template spg}
-/// Secure Password Gen
+/// Secure Password Generator
 /// {@endtemplate}
 class Spg {
   ///
@@ -14,48 +13,57 @@ class Spg {
   static const _digits = '0123456789';
   static const _specialChars = r'!@#$%^&*()-_=+[]{};:,.<>?/|';
 
+  /// Generates a secure random password.
   ///
+  /// [length] is the desired length of the password (minimum 12).
+  /// [needHash] indicates whether to return the hashed password.
+  /// [customCharSet] allows specifying a custom character set.
   static String generateRandomPassword({
     int length = 18,
     bool needHash = false,
+    String? customCharSet,
   }) {
-    if (length < 8) {
-      throw ArgumentError('Password length should be at least 8 characters');
+    if (length < 12) {
+      throw ArgumentError('Password length must be at least 12 characters');
     }
 
     final rand = Random.secure();
-    final passwordChars = List<String>.filled(length, '');
+    final passwordChars = <String>[];
 
-    // Ensure at least one character from each group
-    passwordChars[0] = _getRandomChar(_lowercaseLetters, rand);
-    passwordChars[1] = _getRandomChar(_uppercaseLetters, rand);
-    passwordChars[2] = _getRandomChar(_digits, rand);
-    passwordChars[3] = _getRandomChar(_specialChars, rand);
-
-    // Fill the rest of the password with random characters from all groups
-    const allChars =
+    final charSet = customCharSet ??
         _lowercaseLetters + _uppercaseLetters + _digits + _specialChars;
 
-    for (var i = 4; i < length; i++) {
-      passwordChars[i] = _getRandomChar(allChars, rand);
+    // Ensure at least one character from each group if not using a custom set
+    if (customCharSet == null) {
+      passwordChars.add(_getRandomChar(_lowercaseLetters, rand));
+      passwordChars.add(_getRandomChar(_uppercaseLetters, rand));
+      passwordChars.add(_getRandomChar(_digits, rand));
+      passwordChars.add(_getRandomChar(_specialChars, rand));
+    }
+
+    // Fill the rest of the password with random characters
+    while (passwordChars.length < length) {
+      passwordChars.add(_getRandomChar(charSet, rand));
     }
 
     // Shuffle the characters to ensure randomness
     passwordChars.shuffle(rand);
 
+    final password = passwordChars.join();
+
     if (needHash) {
-      return PasswordHashManager.hash(passwordChars.join());
+      return PasswordHashManager.hash(password);
     }
 
-    return passwordChars.join();
+    return password;
   }
 
   static String _getRandomChar(String charSet, Random rand) {
     return charSet[rand.nextInt(charSet.length)];
   }
 
-  ///
-  static bool validatePasswords({
+  /// Validates if a password matches its hashed version.
+  static bool validatePassword({
     required String password,
     required String hashedPassword,
   }) {
@@ -63,5 +71,22 @@ class Spg {
       password: password,
       hashedPassword: hashedPassword,
     );
+  }
+
+  /// Evaluates the strength of a password.
+  static String evaluatePasswordStrength(String password) {
+    var score = 0;
+
+    if (password.length >= 12) score += 2;
+    if (password.length >= 16) score += 2;
+    if (RegExp(r'[a-z]').hasMatch(password)) score++;
+    if (RegExp(r'[A-Z]').hasMatch(password)) score++;
+    if (RegExp(r'[0-9]').hasMatch(password)) score++;
+    if (RegExp(r'[!@#$%^&*()-_=+\[\]{};:,.<>?/|]').hasMatch(password)) score++;
+
+    if (score < 3) return 'Weak';
+    if (score < 5) return 'Moderate';
+    if (score < 7) return 'Strong';
+    return 'Very Strong';
   }
 }
